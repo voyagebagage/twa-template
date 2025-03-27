@@ -1,4 +1,4 @@
-# TWA CLI Wizard
+# create-twa
 
 A command-line interface (CLI) wizard for creating Telegram Web App (TWA) projects with different templates and configurations.
 
@@ -20,27 +20,33 @@ A command-line interface (CLI) wizard for creating Telegram Web App (TWA) projec
 ### Global Installation
 
 ```bash
-npm install -g twa-cli
-```
+# Using npm
+npm install -g create-twa
 
-Or using pnpm:
+# Using pnpm
+pnpm add -g create-twa
 
-```bash
-pnpm add -g twa-cli
+# Using Deno
+deno install -A -r https://raw.githubusercontent.com/voyagebagage/twa-template/main/twa-cli-wizard/bin/deno-entry.js
 ```
 
 ### Usage Without Installation
 
-Using npx:
-
 ```bash
-npx twa-cli my-twa-app
+# Using npx (npm)
+npx create-twa my-twa-app
+
+# Using pnpm
+pnpm dlx create-twa my-twa-app
+
+# Using Deno
+deno run -A https://raw.githubusercontent.com/voyagebagage/twa-template/main/twa-cli-wizard/bin/deno-entry.js my-twa-app
 ```
 
 ## Usage
 
 ```bash
-twa-create [project-name]
+create-twa [project-name]
 ```
 
 If you don't provide a project name, the wizard will prompt you for one.
@@ -82,9 +88,13 @@ After completing the wizard, your project will be created with all selected feat
 To develop the CLI tool:
 
 1. Clone the repository
+   ```bash
+   git clone https://github.com/voyagebagage/twa-template.git
+   cd twa-template/twa-cli-wizard
+   ```
 2. Install dependencies with `pnpm install`
 3. Make your changes
-4. Test locally with `pnpm start`
+4. Test locally with `pnpm start my-test-app`
 
 ## License
 

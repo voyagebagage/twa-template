@@ -1,105 +1,108 @@
 # Telegram Web App Templates and CLI Wizard
 
-This project provides a collection of templates and tools for creating Telegram Web Apps (TWA) quickly and efficiently.
+This project provides templates and tools for easily creating Telegram Web Apps (TWA) with modern technologies.
+
+## Quick Start
+
+The fastest way to create a new Telegram Web App is with our CLI wizard:
+
+```bash
+# Using npx (no installation required)
+npx create-twa my-twa-app
+
+# Using pnpm
+pnpm dlx create-twa my-twa-app
+
+# Using Deno
+deno run -A https://raw.githubusercontent.com/voyagebagage/twa-template/main/twa-cli-wizard/bin/deno-entry.js my-twa-app
+```
 
 ## Project Structure
 
-- **twa-cli-wizard/** - CLI tool for creating new Telegram Web App projects
+- **twa-cli-wizard/** - CLI tool for creating new TWA projects (`create-twa`)
 - **template-twa/** - Next.js template with server-side rendering and API routes
-- **template-twa-vite/** - Vite template for client-side only Telegram Web Apps
+- **template-twa-vite/** - Vite template for client-side only applications
 
-## Getting Started
-
-### Using the CLI Wizard
-
-The easiest way to create a new Telegram Web App is by using the CLI wizard:
-
-```bash
-# Navigate to the CLI directory
-cd twa-cli-wizard
-
-# Install dependencies
-pnpm install
-
-# Run the wizard
-pnpm start my-twa-app
-```
-
-Follow the interactive prompts to configure your project. You can choose between:
-
-- **Next.js template** - Full-featured with server-side rendering and API routes
-- **Vite template** - Lightweight client-side only template
-
-### Using Templates Directly
-
-If you prefer to use the templates directly:
-
-#### Next.js Template
-
-```bash
-# Copy the template
-cp -r template-twa my-nextjs-twa
-
-# Navigate to project directory
-cd my-nextjs-twa
-
-# Install dependencies
-pnpm install
-
-# Start development server
-pnpm dev
-```
-
-#### Vite Template
-
-```bash
-# Copy the template
-cp -r template-twa-vite my-vite-twa
-
-# Navigate to project directory
-cd my-vite-twa
-
-# Install dependencies
-pnpm install
-
-# Start development server
-pnpm dev
-```
-
-## Features
+## Templates
 
 ### Next.js Template
 
-- Server-side rendering
-- API routes
-- Full Telegram Web App integration
-- TypeScript, Zod, TanStack Query
-- Tailwind CSS for styling
+Full-featured template with server-side capabilities:
+
+- ⚡ Server-side rendering for better SEO and performance
+- 🔌 API routes (optional) for backend functionality
+- 📱 Full Telegram WebApp integration with platform-specific styling
+- 🔄 TanStack Query for data fetching
+- 🧁 Zustand for state management
+- 🎨 Tailwind CSS v4 for styling
+- 🧰 TypeScript and Zod for type safety
 
 ### Vite Template
 
-- Lightweight and fast
-- Client-side only
-- Full Telegram Web App integration
-- TypeScript, Zod
-- Tailwind CSS for styling
+Lightweight client-only template:
 
-### Both Templates Include
+- 🚀 Fast development and build times with Vite
+- 📱 Full Telegram WebApp integration
+- 🧁 Zustand for state management
+- 🎨 Tailwind CSS for styling
+- 🧰 TypeScript and Zod for type safety
 
-- Ready-to-use Telegram Web App integration
-- Mobile-optimized UI for iOS and Android
-- Development tunnels for testing with Telegram
-- Responsive layouts with proper safe area handling
+## Installation
+
+### Using The CLI Wizard
+
+```bash
+# Global installation
+npm install -g create-twa
+
+# Then create new projects with:
+create-twa my-new-app
+```
+
+The wizard will guide you through selecting a template (Next.js or Vite) and configuring options like API routes.
+
+### Using Templates Directly
+
+If you prefer to use the templates without the wizard:
+
+```bash
+# Clone the repository
+git clone https://github.com/voyagebagage/twa-template.git
+
+# Copy the template you want to use
+cp -r twa-template/template-twa my-nextjs-twa
+# OR
+cp -r twa-template/template-twa-vite my-vite-twa
+
+# Navigate to your project and install dependencies
+cd my-nextjs-twa
+pnpm install
+```
 
 ## Development
 
-To expose your local server for testing with Telegram:
+Both templates include development tunnels for testing with Telegram:
 
 ```bash
+# Start development server
+pnpm dev
+
+# Start development tunnel for testing with Telegram
 pnpm dev:tunnel
 ```
 
-Use the generated URL in your Telegram Bot settings.
+Use the tunnel URL in your Telegram Bot settings for testing.
+
+## API Routes Configuration
+
+The Next.js template supports API routes for backend functionality. You can:
+
+1. Use the CLI wizard and select whether to include API routes
+2. Manually remove the `/src/app/api` directory if you don't need them
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 

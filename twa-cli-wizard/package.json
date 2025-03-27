@@ -1,11 +1,11 @@
 {
-  "name": "twa-cli",
+  "name": "create-twa",
   "version": "1.0.0",
   "description": "CLI wizard for creating Telegram Web App templates",
   "type": "module",
   "main": "bin/index.js",
   "bin": {
-    "twa-create": "bin/index.js"
+    "create-twa": "bin/index.js"
   },
   "scripts": {
     "start": "node bin/index.js"
@@ -17,9 +17,10 @@
     "twa",
     "cli",
     "wizard",
-    "template"
+    "template",
+    "create"
   ],
-  "author": "",
+  "author": "voyagebagage",
   "license": "MIT",
   "dependencies": {
     "chalk": "^5.3.0",
@@ -30,5 +31,16 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voyagebagage/twa-template.git"
+  },
+  "bugs": {
+    "url": "https://github.com/voyagebagage/twa-template/issues"
+  },
+  "homepage": "https://github.com/voyagebagage/twa-template#readme",
+  "publishConfig": {
+    "access": "public"
   }
 }

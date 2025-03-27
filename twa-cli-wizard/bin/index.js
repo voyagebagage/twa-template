@@ -29,7 +29,7 @@ const version = "1.0.0";
 
 // Command line setup
 program
-  .name("twa-create")
+  .name("create-twa")
   .description("Create a new Telegram Web App project")
   .version(version)
   .argument("[project-directory]", "Directory to create the project in")
@@ -152,26 +152,51 @@ program
 
     try {
       // Get the source template path
-      const templatePath = path.join(templatesDir, templateName);
+      let templatePath = path.join(templatesDir, templateName);
 
-      // Check if template exists
+      // Check if template exists in the templates directory
       if (!fs.existsSync(templatePath)) {
-        // If template doesn't exist, use the project template directly from the parent directory
-        const templatePathFallback = path.join(
-          __dirname,
-          "..",
-          "..",
-          templateName
-        );
-        if (!fs.existsSync(templatePathFallback)) {
-          spinner.fail(`Template "${templateName}" not found.`);
-          process.exit(1);
+        // If template doesn't exist, try to use the template from the parent directory
+        templatePath = path.join(__dirname, "..", "..", templateName);
+
+        // Check if template exists in parent directory
+        if (!fs.existsSync(templatePath)) {
+          // If the template doesn't exist locally, attempt to download it from GitHub
+          spinner.text =
+            "Template not found locally. Downloading from GitHub...";
+
+          try {
+            const tempDir = path.join(__dirname, "..", "temp");
+            await fs.ensureDir(tempDir);
+
+            // Create temp directory to clone the repo
+            const { execSync } = await import("child_process");
+
+            execSync(
+              `git clone --depth 1 https://github.com/voyagebagage/twa-template.git ${tempDir}`,
+              { stdio: "ignore" }
+            );
+
+            // Check if template exists in the cloned repo
+            const clonedTemplatePath = path.join(tempDir, templateName);
+            if (!fs.existsSync(clonedTemplatePath)) {
+              spinner.fail(`Template "${templateName}" not found.`);
+              process.exit(1);
+            }
+
+            // Use the cloned template
+            templatePath = clonedTemplatePath;
+
+            spinner.text = "Copying template files...";
+          } catch (error) {
+            spinner.fail(`Failed to download template: ${error.message}`);
+            process.exit(1);
+          }
         }
-        await fs.copy(templatePathFallback, projectPath);
-      } else {
-        // Copy template files to the project directory
-        await fs.copy(templatePath, projectPath);
       }
+
+      // Copy template files to the project directory
+      await fs.copy(templatePath, projectPath);
 
       // Update package.json with project name
       const packageJsonPath = path.join(projectPath, "package.json");
@@ -185,10 +210,17 @@ program
       const envPath = path.join(projectPath, ".env.example");
       if (fs.existsSync(envPath)) {
         let envContent = await fs.readFile(envPath, "utf8");
-        envContent = envContent.replace(
-          /NEXT_PUBLIC_TELEGRAM_BOT_NAME=.*/,
-          `NEXT_PUBLIC_TELEGRAM_BOT_NAME=${botName}`
-        );
+        if (templateType === "nextjs") {
+          envContent = envContent.replace(
+            /NEXT_PUBLIC_TELEGRAM_BOT_NAME=.*/,
+            `NEXT_PUBLIC_TELEGRAM_BOT_NAME=${botName}`
+          );
+        } else {
+          envContent = envContent.replace(
+            /VITE_TELEGRAM_BOT_NAME=.*/,
+            `VITE_TELEGRAM_BOT_NAME=${botName}`
+          );
+        }
         await fs.writeFile(path.join(projectPath, ".env"), envContent);
       }
 
@@ -209,8 +241,23 @@ program
         );
       }
 
+      // Handle API routes for Next.js template
       if (!apiRoutes && templateType === "nextjs") {
         await fs.remove(path.join(projectPath, "src", "app", "api"));
+
+        // Update the next.config.mjs to disable API routes
+        const nextConfigPath = path.join(projectPath, "next.config.mjs");
+        if (fs.existsSync(nextConfigPath)) {
+          let configContent = await fs.readFile(nextConfigPath, "utf8");
+
+          // Add a comment indicating API routes are disabled
+          configContent = configContent.replace(
+            "const nextConfig = {",
+            "// API routes are disabled based on user configuration\nconst nextConfig = {"
+          );
+
+          await fs.writeFile(nextConfigPath, configContent);
+        }
       }
 
       spinner.succeed("Template files copied successfully.");
