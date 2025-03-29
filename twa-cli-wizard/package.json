@@ -42,5 +42,8 @@
   "homepage": "https://github.com/voyagebagage/twa-template#readme",
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "trustedDependencies": [
+    "hono"
+  ]
 }
