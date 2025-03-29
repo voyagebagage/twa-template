@@ -12,7 +12,8 @@
     "dev": "node bin/index.js",
     "link": "npm link",
     "unlink": "npm unlink",
-    "debug": "node --inspect-brk bin/index.js"
+    "debug": "node --inspect-brk bin/index.js",
+    "test": "node __tests__/basic.test.js"
   },
   "keywords": [
     "telegram",

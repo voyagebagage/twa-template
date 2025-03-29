@@ -109,6 +109,40 @@ To develop the CLI tool:
 3. Make your changes
 4. Test locally with `pnpm start my-test-app`
 
+## Publishing to npm
+
+This package is ready to be published to npm. To publish:
+
+1. Make sure you have an npm account and are logged in:
+
+   ```bash
+   npm login
+   ```
+
+2. Update the version if needed:
+
+   ```bash
+   npm version patch  # or minor or major
+   ```
+
+3. Publish to npm:
+   ```bash
+   npm publish
+   ```
+
+Alternatively, create a GitHub release which will trigger the automated npm publish workflow.
+
+### GitHub Actions for Publishing
+
+This repository includes a GitHub Actions workflow that will automatically publish to npm when a new GitHub release is created or when the workflow is manually dispatched. To use it:
+
+1. Add your npm token as a GitHub secret named `NPM_TOKEN`
+2. Create a new release on GitHub or manually run the workflow
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for information on how to contribute to this project.
+
 ## License
 
 MIT

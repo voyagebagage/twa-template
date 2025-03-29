@@ -1,0 +1,18 @@
+# Development and temp files
+.DS_Store
+.git
+.github
+node_modules
+temp/
+partage-tes-graines/
+
+# Test/debug files
+__tests__/
+test/
+*.test.js
+*.spec.js
+
+# Other
+*.log
+.vscode/
+.idea/
