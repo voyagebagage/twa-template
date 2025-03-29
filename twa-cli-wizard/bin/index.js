@@ -198,7 +198,7 @@ program
 
           try {
             execSync(createCommand, {
-              stdio: "ignore",
+              stdio: "inherit", // Show output to user
               cwd: process.cwd(),
             });
 
@@ -208,10 +208,16 @@ program
             // Now we need to get our template files and merge them with the Hono project
             let templatePath = path.join(templatesDir, templateName);
 
+            // Debug template paths
+            console.log(`Checking template in: ${templatePath}`);
+
             // Check if template exists in the templates directory
             if (!fs.existsSync(templatePath)) {
               // If template doesn't exist, try to use the template from the parent directory
               templatePath = path.join(__dirname, "..", "..", templateName);
+              console.log(
+                `Checking template in parent directory: ${templatePath}`
+              );
 
               // Check if template exists in parent directory
               if (!fs.existsSync(templatePath)) {
@@ -226,11 +232,15 @@ program
                   // Create temp directory to clone the repo
                   execSync(
                     `git clone --depth 1 https://github.com/voyagebagage/twa-template.git ${tempDir}`,
-                    { stdio: "ignore" }
+                    { stdio: "inherit" }
                   );
 
                   // Check if template exists in the cloned repo
                   const clonedTemplatePath = path.join(tempDir, templateName);
+                  console.log(
+                    `Checking template in cloned repo: ${clonedTemplatePath}`
+                  );
+
                   if (!fs.existsSync(clonedTemplatePath)) {
                     spinner.fail(`Template "${templateName}" not found.`);
                     process.exit(1);
@@ -306,6 +316,26 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
               await fs.writeFile(envPath, envContent);
             }
 
+            // Install dependencies
+            spinner.text = "Installing dependencies...";
+            const installCommand =
+              packageManager === "npm"
+                ? "npm install"
+                : packageManager === "bun"
+                ? "bun install"
+                : "pnpm install";
+
+            try {
+              execSync(installCommand, {
+                stdio: "inherit",
+                cwd: projectPath,
+              });
+            } catch (error) {
+              spinner.warn(
+                `Failed to install dependencies: ${error.message}. Project created but dependencies not installed.`
+              );
+            }
+
             // Update dependencies to latest versions
             spinner.text = "Updating dependencies to latest versions...";
             const updateCommand =
@@ -313,10 +343,16 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
                 ? "bun update"
                 : `${packageManager} up --latest`;
 
-            execSync(updateCommand, {
-              stdio: "ignore",
-              cwd: projectPath,
-            });
+            try {
+              execSync(updateCommand, {
+                stdio: "inherit",
+                cwd: projectPath,
+              });
+            } catch (error) {
+              spinner.warn(
+                `Failed to update dependencies: ${error.message}. You may need to update them manually.`
+              );
+            }
           } catch (error) {
             spinner.fail(`Failed to create Hono project: ${error.message}`);
             process.exit(1);
@@ -330,10 +366,14 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
         // Get the source template path
         let templatePath = path.join(templatesDir, templateName);
 
+        // Debug template paths
+        console.log(`Checking template in: ${templatePath}`);
+
         // Check if template exists in the templates directory
         if (!fs.existsSync(templatePath)) {
           // If template doesn't exist, try to use the template from the parent directory
           templatePath = path.join(__dirname, "..", "..", templateName);
+          console.log(`Checking template in parent directory: ${templatePath}`);
 
           // Check if template exists in parent directory
           if (!fs.existsSync(templatePath)) {
@@ -348,11 +388,15 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
               // Create temp directory to clone the repo
               execSync(
                 `git clone --depth 1 https://github.com/voyagebagage/twa-template.git ${tempDir}`,
-                { stdio: "ignore" }
+                { stdio: "inherit" }
               );
 
               // Check if template exists in the cloned repo
               const clonedTemplatePath = path.join(tempDir, templateName);
+              console.log(
+                `Checking template in cloned repo: ${clonedTemplatePath}`
+              );
+
               if (!fs.existsSync(clonedTemplatePath)) {
                 spinner.fail(`Template "${templateName}" not found.`);
                 process.exit(1);
@@ -454,9 +498,29 @@ export default async function Home() {
             await fs.writeFile(homePath, homeContent);
           }
         }
+
+        // Install dependencies
+        spinner.text = "Installing dependencies...";
+        const installCommand =
+          packageManager === "npm"
+            ? "npm install"
+            : packageManager === "bun"
+            ? "bun install"
+            : "pnpm install";
+
+        try {
+          execSync(installCommand, {
+            stdio: "inherit", // Show output to user
+            cwd: projectPath,
+          });
+        } catch (error) {
+          spinner.warn(
+            `Failed to install dependencies: ${error.message}. Project created but dependencies not installed.`
+          );
+        }
       }
 
-      spinner.succeed("Template files copied successfully.");
+      spinner.succeed("Project created successfully.");
 
       // Final instructions
       console.log(
@@ -468,16 +532,11 @@ export default async function Home() {
       console.log(`1. ${chalk.cyan(`cd ${projectDirectory}`)}`);
       console.log(
         `2. ${chalk.cyan(
-          `${packageManager} install`
-        )} (if not already installed)`
-      );
-      console.log(
-        `3. ${chalk.cyan(
           `${packageManager} ${packageManager === "npm" ? "run " : ""}dev`
         )} to start the development server`
       );
       console.log(
-        `4. ${chalk.cyan(
+        `3. ${chalk.cyan(
           `${packageManager} ${
             packageManager === "npm" ? "run " : ""
           }dev:tunnel`
