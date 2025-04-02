@@ -7,7 +7,7 @@ import chalk from "chalk";
 import inquirer from "inquirer";
 import { program } from "commander";
 import ora from "ora";
-import { execSync } from "child_process";
+import { execa } from "execa";
 
 // Get the directory name of the current module
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,15 +28,15 @@ const logo = `
 // CLI version
 const version = "1.0.0";
 
-// Detect if Bun is available
-const isBunAvailable = () => {
+// Helper function to check if a package manager is installed
+async function isPackageManagerInstalled(packageManager) {
   try {
-    execSync("bun --version", { stdio: "ignore" });
+    await execa(packageManager, ["--version"]);
     return true;
-  } catch (e) {
+  } catch (error) {
     return false;
   }
-};
+}
 
 // Command line setup
 program
@@ -86,30 +86,24 @@ program
       }
     }
 
-    // Ask for package manager
-    const bunAvailable = isBunAvailable();
-    const defaultPackageManager = bunAvailable ? "bun" : "pnpm";
+    // Check package managers availability
+    const isPnpmAvailable = await isPackageManagerInstalled("pnpm");
+    const isBunAvailable = await isPackageManagerInstalled("bun");
 
+    // Ask for package manager
     const { packageManager } = await inquirer.prompt([
       {
         type: "list",
         name: "packageManager",
         message: "Which package manager would you like to use?",
         choices: [
-          { name: "pnpm", value: "pnpm" },
-          {
-            name: "bun",
-            value: "bun",
-            disabled: !bunAvailable && "Bun is not installed",
-          },
+          ...(isPnpmAvailable ? [{ name: "pnpm", value: "pnpm" }] : []),
+          ...(isBunAvailable ? [{ name: "bun", value: "bun" }] : []),
           { name: "npm", value: "npm" },
         ],
-        default: defaultPackageManager,
+        default: isPnpmAvailable ? "pnpm" : isBunAvailable ? "bun" : "npm",
       },
     ]);
-
-    // Create the project directory
-    await fs.ensureDir(projectPath);
 
     // Ask for template and configuration
     const { templateType, useTypeScript, useZod, useTanstack, useTailwind } =
@@ -154,7 +148,7 @@ program
     let useHono = false;
 
     if (templateType === "nextjs") {
-      const { useApiRoutes } = await inquirer.prompt([
+      const nextjsOptions = await inquirer.prompt([
         {
           type: "confirm",
           name: "useApiRoutes",
@@ -162,18 +156,20 @@ program
           default: true,
         },
       ]);
-      apiRoutes = useApiRoutes;
+
+      apiRoutes = nextjsOptions.useApiRoutes;
 
       if (apiRoutes) {
-        const { withHono } = await inquirer.prompt([
+        const honoOptions = await inquirer.prompt([
           {
             type: "confirm",
-            name: "withHono",
+            name: "useHono",
             message: "Do you want to use Hono in Next.js API routes?",
             default: false,
           },
         ]);
-        useHono = withHono;
+
+        useHono = honoOptions.useHono;
       }
     }
 
@@ -190,237 +186,257 @@ program
     // Start creating the project
     console.log(chalk.green("\nCreating your Telegram Web App project...\n"));
 
-    // Handle Hono integration if needed
-    if (useHono) {
-      const spinner = ora("Setting up Hono for Next.js API routes...").start();
+    // Create a loading spinner
+    const spinner = ora("Setting up your project...").start();
 
-      try {
-        // Create a temporary directory for Hono setup
-        const tempHonoDir = path.join(__dirname, "..", "temp", "hono-setup");
-        await fs.ensureDir(tempHonoDir);
+    try {
+      // For Hono setup, we'll use Hono's CLI to create the base project
+      if (useHono) {
+        spinner.text = "Creating Hono project with Next.js...";
 
-        // Run Hono CLI to generate a Next.js app with Hono
-        const honoCreateCmd = `${packageManager}${
-          packageManager === "npm" ? " exec " : " "
-        }create-hono@latest ${projectDirectory} --template nextjs`;
+        try {
+          // Create Hono project with Next.js
+          await execa(packageManager, ["create", "hono", projectDirectory], {
+            stdio: "ignore",
+          });
 
-        spinner.text = `Running: ${honoCreateCmd}`;
-        execSync(honoCreateCmd, {
-          stdio: "ignore",
-          cwd: process.cwd(),
-        });
+          // Navigate to the project directory for the next commands
+          process.chdir(projectPath);
 
-        spinner.succeed("Hono for Next.js API routes set up successfully.");
+          // Choose Next.js template
+          spinner.text = "Selecting Next.js template...";
+          await execa("echo", ["1"], { stdio: ["pipe", "pipe", "pipe"] });
 
-        // Continue with TWA template integration
-        spinner.text = "Integrating Telegram Web App template...";
-        spinner.start();
+          // Choose package manager
+          spinner.text = `Selecting ${packageManager}...`;
+          const pmOption =
+            packageManager === "pnpm"
+              ? "1"
+              : packageManager === "bun"
+              ? "3"
+              : "2";
+          await execa("echo", [pmOption], { stdio: ["pipe", "pipe", "pipe"] });
 
-        // Get source template path
-        let templatePath = path.join(templatesDir, "template-twa");
+          spinner.succeed("Hono project created successfully!");
+          spinner.start("Integrating Telegram Web App template...");
+        } catch (error) {
+          spinner.fail("Failed to create Hono project");
+          console.error(chalk.red(`Error: ${error.message}`));
+          process.exit(1);
+        }
+      } else {
+        // Create the project directory for non-Hono setups
+        await fs.ensureDir(projectPath);
+      }
 
-        // Check if template exists locally
+      // Determine which template to use
+      const templateName =
+        templateType === "nextjs" ? "template-twa" : "template-twa-vite";
+
+      // Get the source template path
+      let templatePath = path.join(templatesDir, templateName);
+
+      // Check if template exists in the templates directory
+      if (!fs.existsSync(templatePath)) {
+        // If template doesn't exist, try to use the template from the parent directory
+        templatePath = path.join(__dirname, "..", "..", templateName);
+
+        // Check if template exists in parent directory
         if (!fs.existsSync(templatePath)) {
-          templatePath = path.join(__dirname, "..", "..", "template-twa");
+          // If the template doesn't exist locally, attempt to download it from GitHub
+          spinner.text =
+            "Template not found locally. Downloading from GitHub...";
 
-          if (!fs.existsSync(templatePath)) {
-            // Download from GitHub
-            spinner.text =
-              "Template not found locally. Downloading from GitHub...";
+          try {
+            const tempDir = path.join(__dirname, "..", "temp");
+            await fs.ensureDir(tempDir);
 
-            try {
-              const tempDir = path.join(__dirname, "..", "temp");
-              await fs.ensureDir(tempDir);
-
-              execSync(
-                `git clone --depth 1 https://github.com/voyagebagage/twa-template.git ${tempDir}/repo`,
-                { stdio: "ignore" }
-              );
-
-              const clonedTemplatePath = path.join(
+            // Create temp directory to clone the repo
+            await execa(
+              "git",
+              [
+                "clone",
+                "--depth",
+                "1",
+                "https://github.com/voyagebagage/twa-template.git",
                 tempDir,
-                "repo",
-                "template-twa"
-              );
-              if (!fs.existsSync(clonedTemplatePath)) {
-                spinner.fail(`Template "template-twa" not found.`);
-                process.exit(1);
-              }
+              ],
+              { stdio: "ignore" }
+            );
 
-              templatePath = clonedTemplatePath;
-              spinner.text = "Integrating Telegram Web App template...";
-            } catch (error) {
-              spinner.fail(`Failed to download template: ${error.message}`);
+            // Check if template exists in the cloned repo
+            const clonedTemplatePath = path.join(tempDir, templateName);
+            if (!fs.existsSync(clonedTemplatePath)) {
+              spinner.fail(`Template "${templateName}" not found.`);
               process.exit(1);
             }
+
+            // Use the cloned template
+            templatePath = clonedTemplatePath;
+
+            spinner.text = "Copying template files...";
+          } catch (error) {
+            spinner.fail(`Failed to download template: ${error.message}`);
+            process.exit(1);
           }
         }
+      }
 
-        // Integrate TWA template with Hono project
-        // Copy components, styles, hooks, but keep Hono's app structure
-        const componentSrc = path.join(templatePath, "src", "components");
-        const componentDest = path.join(projectPath, "components");
-        await fs.copy(componentSrc, componentDest);
+      // If we're using Hono, merge the TWA template with the Hono project
+      // Otherwise, just copy the template files to the project directory
+      if (useHono) {
+        // Copy specific directories and files from the template to the Hono project
+        // We'll want to be selective to not overwrite Hono's setup
+        spinner.text = "Merging TWA template with Hono...";
 
-        // Copy hooks
-        const hooksSrc = path.join(templatePath, "src", "hooks");
-        const hooksDest = path.join(projectPath, "hooks");
-        await fs.copy(hooksSrc, hooksDest);
-
-        // Copy lib utilities
-        const libSrc = path.join(templatePath, "src", "lib");
-        const libDest = path.join(projectPath, "lib");
-        await fs.copy(libSrc, libDest);
-
-        // Copy schemas
-        if (useZod) {
-          const schemasSrc = path.join(templatePath, "src", "schemas");
-          const schemasDest = path.join(projectPath, "schemas");
-          await fs.copy(schemasSrc, schemasDest);
+        // Copy TWA components and styles
+        if (fs.existsSync(path.join(templatePath, "src", "components"))) {
+          await fs.copy(
+            path.join(templatePath, "src", "components"),
+            path.join(projectPath, "src", "components")
+          );
         }
 
-        // Copy stores
-        const storesSrc = path.join(templatePath, "src", "stores");
-        const storesDest = path.join(projectPath, "stores");
-        await fs.copy(storesSrc, storesDest);
+        if (fs.existsSync(path.join(templatePath, "src", "hooks"))) {
+          await fs.copy(
+            path.join(templatePath, "src", "hooks"),
+            path.join(projectPath, "src", "hooks")
+          );
+        }
 
-        // Copy types
-        const typesSrc = path.join(templatePath, "src", "types");
-        const typesDest = path.join(projectPath, "types");
-        await fs.copy(typesSrc, typesDest);
+        if (fs.existsSync(path.join(templatePath, "src", "lib"))) {
+          await fs.copy(
+            path.join(templatePath, "src", "lib"),
+            path.join(projectPath, "src", "lib")
+          );
+        }
 
-        // Update homepage to match the screenshot
-        const appPagePath = path.join(projectPath, "app", "page.tsx");
-        if (fs.existsSync(appPagePath)) {
-          let pageContent = `
-import { message } from '@/components/ui/message';
+        if (fs.existsSync(path.join(templatePath, "src", "stores"))) {
+          await fs.copy(
+            path.join(templatePath, "src", "stores"),
+            path.join(projectPath, "src", "stores")
+          );
+        }
 
-export default async function Home() {
+        if (
+          useZod &&
+          fs.existsSync(path.join(templatePath, "src", "schemas"))
+        ) {
+          await fs.copy(
+            path.join(templatePath, "src", "schemas"),
+            path.join(projectPath, "src", "schemas")
+          );
+        }
+
+        // Copy styles
+        if (
+          fs.existsSync(path.join(templatePath, "src", "app", "globals.css"))
+        ) {
+          await fs.copy(
+            path.join(templatePath, "src", "app", "globals.css"),
+            path.join(projectPath, "src", "app", "globals.css")
+          );
+        }
+
+        // Copy environment files
+        if (fs.existsSync(path.join(templatePath, ".env.example"))) {
+          await fs.copy(
+            path.join(templatePath, ".env.example"),
+            path.join(projectPath, ".env.example")
+          );
+
+          // Create .env file from .env.example
+          let envContent = await fs.readFile(
+            path.join(projectPath, ".env.example"),
+            "utf8"
+          );
+          envContent = envContent.replace(
+            /NEXT_PUBLIC_TELEGRAM_BOT_NAME=.*/,
+            `NEXT_PUBLIC_TELEGRAM_BOT_NAME=${botName}`
+          );
+          await fs.writeFile(path.join(projectPath, ".env"), envContent);
+        }
+
+        // Create a hello API route using Hono
+        const apiDir = path.join(projectPath, "src", "app", "api");
+        await fs.ensureDir(apiDir);
+
+        // Create hello route for Hono
+        const helloApiDir = path.join(apiDir, "hello");
+        await fs.ensureDir(helloApiDir);
+
+        // Create route.ts file for Hono API
+        await fs.writeFile(
+          path.join(helloApiDir, "route.ts"),
+          `import { Hono } from 'hono'
+import { handle } from 'hono/vercel'
+
+const app = new Hono().basePath('/api/hello')
+
+app.get('/', (c) => {
+  return c.json({ message: 'Hello from Hono!' })
+})
+
+export const GET = handle(app)`
+        );
+
+        // Create or update home page to use the API
+        const homePage = path.join(projectPath, "src", "app", "page.tsx");
+        if (fs.existsSync(homePage)) {
+          await fs.writeFile(
+            homePage,
+            `export default async function Home() {
   const res = await fetch(\`\${process.env.NEXT_PUBLIC_API_URL}/api/hello\`);
   const { message } = await res.json();
 
   if (!message) return <p>Loading...</p>;
 
   return <p>{message}</p>;
-}
-`;
-          await fs.writeFile(appPagePath, pageContent);
+}`
+          );
         }
 
-        // Update package.json with bot name and dev:tunnel script
+        // Copy README and other docs
+        if (fs.existsSync(path.join(templatePath, "README.md"))) {
+          await fs.copy(
+            path.join(templatePath, "README.md"),
+            path.join(projectPath, "README.md")
+          );
+        }
+
+        // Update the project's package.json to include TWA dependencies
         const packageJsonPath = path.join(projectPath, "package.json");
         if (fs.existsSync(packageJsonPath)) {
           const packageJson = await fs.readJson(packageJsonPath);
-          packageJson.name = projectDirectory.toLowerCase();
 
-          // Add dev:tunnel script
-          if (!packageJson.scripts["dev:tunnel"]) {
-            packageJson.scripts["dev:tunnel"] =
-              "cross-env NEXT_PUBLIC_ENV=production ts-node scripts/dev-tunnel.ts";
-          }
+          // Add TWA dependencies
+          packageJson.dependencies = {
+            ...packageJson.dependencies,
+            "@twa-dev/sdk": "^8.0.2",
+            "@twa-dev/types": "^8.0.2",
+            zustand: "^5.0.3",
+          };
+
+          // Update project name
+          packageJson.name = projectDirectory.toLowerCase();
 
           await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
         }
 
-        // Create .env file with bot name
-        const envContent = `
-# Application settings
-PORT=3445
-HOST=localhost
-
-# Environment
-NODE_ENV=development
-NEXT_PUBLIC_ENV=development
-
-# Telegram Bot
-NEXT_PUBLIC_TELEGRAM_BOT_NAME=${botName}
-TELEGRAM_BOT_TOKEN=
-
-# Development settings
-NEXT_PUBLIC_MOCK_TELEGRAM=true
-NEXT_PUBLIC_API_URL=http://localhost:3000
-`;
-        await fs.writeFile(path.join(projectPath, ".env"), envContent);
-
-        // Update dependencies
-        spinner.text = `Updating dependencies with ${packageManager}...`;
-
+        // Update dependencies to latest versions
+        spinner.text = "Updating dependencies to latest versions...";
         try {
-          const updateCmd =
-            packageManager === "bun"
-              ? "bun update"
-              : `${packageManager} update --latest`;
-          execSync(updateCmd, {
-            stdio: "ignore",
-            cwd: projectPath,
-          });
-
-          spinner.succeed("Dependencies updated successfully.");
+          if (packageManager === "pnpm") {
+            await execa("pnpm", ["up", "--latest"], { stdio: "ignore" });
+          } else if (packageManager === "bun") {
+            await execa("bun", ["update"], { stdio: "ignore" });
+          }
         } catch (error) {
           spinner.warn(`Failed to update dependencies: ${error.message}`);
         }
-
-        spinner.succeed(
-          "Telegram Web App template integrated with Hono successfully."
-        );
-      } catch (error) {
-        spinner.fail(`Failed to set up Hono: ${error.message}`);
-        console.error(chalk.red(`\nError: ${error.message}`));
-        process.exit(1);
-      }
-    } else {
-      // Regular template setup without Hono
-      // Determine which template to use
-      const templateName =
-        templateType === "nextjs" ? "template-twa" : "template-twa-vite";
-
-      // Create a loading spinner
-      const spinner = ora("Copying template files...").start();
-
-      try {
-        // Get the source template path
-        let templatePath = path.join(templatesDir, templateName);
-
-        // Check if template exists in the templates directory
-        if (!fs.existsSync(templatePath)) {
-          // If template doesn't exist, try to use the template from the parent directory
-          templatePath = path.join(__dirname, "..", "..", templateName);
-
-          // Check if template exists in parent directory
-          if (!fs.existsSync(templatePath)) {
-            // If the template doesn't exist locally, attempt to download it from GitHub
-            spinner.text =
-              "Template not found locally. Downloading from GitHub...";
-
-            try {
-              const tempDir = path.join(__dirname, "..", "temp");
-              await fs.ensureDir(tempDir);
-
-              // Create temp directory to clone the repo
-              execSync(
-                `git clone --depth 1 https://github.com/voyagebagage/twa-template.git ${tempDir}`,
-                { stdio: "ignore" }
-              );
-
-              // Check if template exists in the cloned repo
-              const clonedTemplatePath = path.join(tempDir, templateName);
-              if (!fs.existsSync(clonedTemplatePath)) {
-                spinner.fail(`Template "${templateName}" not found.`);
-                process.exit(1);
-              }
-
-              // Use the cloned template
-              templatePath = clonedTemplatePath;
-
-              spinner.text = "Copying template files...";
-            } catch (error) {
-              spinner.fail(`Failed to download template: ${error.message}`);
-              process.exit(1);
-            }
-          }
-        }
-
-        // Copy template files to the project directory
+      } else {
+        // Standard template copy for non-Hono projects
+        spinner.text = "Copying template files...";
         await fs.copy(templatePath, projectPath);
 
         // Update package.json with project name
@@ -440,12 +456,6 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
               /NEXT_PUBLIC_TELEGRAM_BOT_NAME=.*/,
               `NEXT_PUBLIC_TELEGRAM_BOT_NAME=${botName}`
             );
-
-            // Update API URL
-            envContent = envContent.replace(
-              /NEXT_PUBLIC_API_URL=.*/,
-              `NEXT_PUBLIC_API_URL=http://localhost:3000`
-            );
           } else {
             envContent = envContent.replace(
               /VITE_TELEGRAM_BOT_NAME=.*/,
@@ -457,24 +467,31 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 
         // Cleanup unnecessary files based on configuration
         if (!useZod) {
-          await fs.remove(path.join(projectPath, "src", "schemas"));
+          const schemasPath = path.join(projectPath, "src", "schemas");
+          if (fs.existsSync(schemasPath)) {
+            await fs.remove(schemasPath);
+          }
         }
 
         if (!useTanstack) {
-          await fs.remove(
-            path.join(
-              projectPath,
-              "src",
-              "components",
-              "providers",
-              "query-provider.tsx"
-            )
+          const queryProviderPath = path.join(
+            projectPath,
+            "src",
+            "components",
+            "providers",
+            "query-provider.tsx"
           );
+          if (fs.existsSync(queryProviderPath)) {
+            await fs.remove(queryProviderPath);
+          }
         }
 
         // Handle API routes for Next.js template
         if (!apiRoutes && templateType === "nextjs") {
-          await fs.remove(path.join(projectPath, "src", "app", "api"));
+          const apiPath = path.join(projectPath, "src", "app", "api");
+          if (fs.existsSync(apiPath)) {
+            await fs.remove(apiPath);
+          }
 
           // Update the next.config.mjs to disable API routes
           const nextConfigPath = path.join(projectPath, "next.config.mjs");
@@ -489,73 +506,91 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 
             await fs.writeFile(nextConfigPath, configContent);
           }
-        } else if (apiRoutes && templateType === "nextjs") {
-          // Update the home page to match the screenshot
-          const homePagePath = path.join(projectPath, "src", "app", "page.tsx");
-          if (fs.existsSync(homePagePath)) {
-            let homeContent = await fs.readFile(homePagePath, "utf8");
+        }
 
-            // Replace the content with the screenshot example
-            const newHomeContent = `
-export default async function Home() {
+        // If using Next.js with API routes (but not Hono), update the home page to use the API
+        if (apiRoutes && templateType === "nextjs" && !useHono) {
+          const homePage = path.join(projectPath, "src", "app", "page.tsx");
+          if (fs.existsSync(homePage)) {
+            await fs.writeFile(
+              homePage,
+              `export default async function Home() {
   const res = await fetch(\`\${process.env.NEXT_PUBLIC_API_URL}/api/hello\`);
   const { message } = await res.json();
 
   if (!message) return <p>Loading...</p>;
 
   return <p>{message}</p>;
-}
-`;
-            await fs.writeFile(homePagePath, newHomeContent);
+}`
+            );
+
+            // Ensure there's a hello API route
+            const apiDir = path.join(projectPath, "src", "app", "api", "hello");
+            await fs.ensureDir(apiDir);
+
+            // Create route.ts file
+            await fs.writeFile(
+              path.join(apiDir, "route.ts"),
+              `import { NextResponse } from "next/server";
+
+export async function GET() {
+  return NextResponse.json({ message: "Hello from Next.js API Route!" });
+}`
+            );
           }
         }
 
-        // Update dependencies to latest versions
-        spinner.text = `Updating dependencies with ${packageManager}...`;
-
+        // Update dependencies to latest versions using the selected package manager
+        spinner.text = "Updating dependencies to latest versions...";
         try {
-          const updateCmd =
-            packageManager === "bun"
-              ? "bun update"
-              : `${packageManager} update --latest`;
-          execSync(updateCmd, {
-            stdio: "ignore",
-            cwd: projectPath,
-          });
-
-          spinner.succeed("Dependencies updated successfully.");
+          if (packageManager === "pnpm") {
+            await execa("pnpm", ["up", "--latest"], {
+              cwd: projectPath,
+              stdio: "ignore",
+            });
+          } else if (packageManager === "bun") {
+            await execa("bun", ["update"], {
+              cwd: projectPath,
+              stdio: "ignore",
+            });
+          }
         } catch (error) {
           spinner.warn(`Failed to update dependencies: ${error.message}`);
         }
-
-        spinner.succeed("Template files copied successfully.");
-
-        // Final instructions
-        console.log(
-          chalk.green(
-            "\n✅ Your Telegram Web App project has been created successfully!"
-          )
-        );
-        console.log("\nNext steps:");
-        console.log(`1. ${chalk.cyan(`cd ${projectDirectory}`)}`);
-        console.log(`2. ${chalk.cyan(`${packageManager} install`)}`);
-        console.log(
-          `3. ${chalk.cyan(
-            `${packageManager} run dev`
-          )} to start the development server`
-        );
-        console.log(
-          `4. ${chalk.cyan(
-            `${packageManager} run dev:tunnel`
-          )} to expose your local server for testing with Telegram\n`
-        );
-
-        console.log(chalk.blue("Happy coding! 🚀"));
-      } catch (error) {
-        spinner.fail("Failed to create project.");
-        console.error(chalk.red(`\nError: ${error.message}`));
-        process.exit(1);
       }
+
+      spinner.succeed("Project setup completed successfully!");
+
+      // Final instructions
+      console.log(
+        chalk.green(
+          "\n✅ Your Telegram Web App project has been created successfully!"
+        )
+      );
+      console.log("\nNext steps:");
+      console.log(`1. ${chalk.cyan(`cd ${projectDirectory}`)}`);
+
+      if (!useHono) {
+        // Skip this for Hono projects as they should already have dependencies installed
+        console.log(`2. ${chalk.cyan(`${packageManager} install`)}`);
+      }
+
+      console.log(
+        `3. ${chalk.cyan(
+          `${packageManager} dev`
+        )} to start the development server`
+      );
+      console.log(
+        `4. ${chalk.cyan(
+          `${packageManager} dev:tunnel`
+        )} to expose your local server for testing with Telegram\n`
+      );
+
+      console.log(chalk.blue("Happy coding! 🚀"));
+    } catch (error) {
+      spinner.fail("Failed to create project.");
+      console.error(chalk.red(`\nError: ${error.message}`));
+      process.exit(1);
     }
   });
 

@@ -1,13 +1,11 @@
-// Script to create a tunnel for Telegram WebApp development
-import * as fs from "fs";
-import * as path from "path";
-import * as dotenv from "dotenv";
-import { spawn } from "child_process";
+// Deno script to create a tunnel for Telegram WebApp development
+import { serve } from "https://deno.land/std@0.198.0/http/server.ts";
+import { load } from "https://deno.land/std@0.198.0/dotenv/mod.ts";
 
 // Load environment variables
-dotenv.config();
-const PORT = parseInt(process.env.PORT || "3445");
-const HOST = process.env.HOST || "localhost";
+const env = await load();
+const PORT = parseInt(env["PORT"] || "3445");
+const HOST = env["HOST"] || "localhost";
 
 // Message styling
 const cyan = (text: string) => `\x1b[36m${text}\x1b[0m`;
@@ -22,60 +20,57 @@ try {
   const subdomain = "twa-" + Math.random().toString(36).substring(2, 10);
 
   // Use cloudflared service
-  const cloudflared = spawn("cloudflared", [
-    "tunnel",
-    "--url",
-    `http://${HOST}:${PORT}`,
-  ]);
+  const process = Deno.run({
+    cmd: ["cloudflared", "tunnel", "--url", `http://${HOST}:${PORT}`],
+    stdout: "piped",
+    stderr: "piped",
+  });
+
+  // Read and process the output to extract the public URL
+  const decoder = new TextDecoder();
+  const buffer = new Uint8Array(1024);
 
   let tunnelUrl = "";
 
-  cloudflared.stdout.on("data", (data) => {
-    const output = data.toString();
-    console.log(output);
+  while (true) {
+    const { nread } = await process.stdout.read(buffer);
+    if (nread === null) break;
+
+    const chunk = decoder.decode(buffer.subarray(0, nread));
+    console.log(chunk);
 
     // Extract tunnel URL from the output
-    const match = output.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+    const match = chunk.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
     if (match && !tunnelUrl) {
       tunnelUrl = match[0];
       console.log(green(`✅ Tunnel established at: ${tunnelUrl}`));
       console.log(cyan("ℹ️  Use this URL in your Telegram Bot settings"));
       console.log(cyan("ℹ️  Press Ctrl+C to stop the tunnel"));
     }
-  });
+  }
 
-  cloudflared.stderr.on("data", (data) => {
-    console.error(`❌ ${data.toString()}`);
-  });
+  // Handle errors
+  const { code } = await process.status();
+  if (code !== 0) {
+    const errorOutput = decoder.decode(await process.stderrOutput());
+    console.error(`❌ Tunnel process exited with code ${code}: ${errorOutput}`);
+  }
 
-  cloudflared.on("close", (code) => {
-    if (code !== 0) {
-      console.log(yellow(`Child process exited with code ${code}`));
-    }
-  });
-
-  // Handle process termination
-  process.on("SIGINT", () => {
-    console.log(yellow("\n⏹️  Stopping tunnel..."));
-    cloudflared.kill();
-    process.exit(0);
-  });
+  process.close();
 } catch (error) {
-  console.error(
-    `❌ Failed to start tunnel: ${
-      error instanceof Error ? error.message : String(error)
-    }`
-  );
+  console.error(`❌ Failed to start tunnel: ${error.message}`);
 
-  // Suggest installation if cloudflared is not found
-  console.log(yellow("\n📌 Cloudflared not found. Install it with:"));
-  console.log(cyan("brew install cloudflared"));
-  console.log(cyan("npm install -g cloudflared"));
-  console.log(
-    yellow(
-      "\nOr download from: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation"
-    )
-  );
+  // If cloudflared is not available, suggest installation
+  if (error.name === "NotFound") {
+    console.log(yellow("\n📌 Cloudflared not found. Install it with:"));
+    console.log(cyan("brew install cloudflared"));
+    console.log(cyan("npm install -g cloudflared"));
+    console.log(
+      yellow(
+        "\nOr download from: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation"
+      )
+    );
+  }
 
-  process.exit(1);
+  Deno.exit(1);
 }

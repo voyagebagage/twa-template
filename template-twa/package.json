@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3445",
-    "dev:tunnel": "cross-env NEXT_PUBLIC_ENV=production NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/dev-tunnel.ts",
+    "dev:tunnel": "cross-env NEXT_PUBLIC_ENV=production NODE_OPTIONS='--loader ts-node/esm' deno run --allow-net --allow-env --allow-read scripts/dev-tunnel.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -45,6 +45,7 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.14",
     "cross-env": "^7.0.3",
+    "deno": "^0.1.1",
     "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "15.2.0",
