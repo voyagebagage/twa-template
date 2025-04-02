@@ -8,12 +8,7 @@
     "create-twa": "bin/index.js"
   },
   "scripts": {
-    "start": "node bin/index.js",
-    "dev": "node bin/index.js",
-    "link": "npm link",
-    "unlink": "npm unlink",
-    "debug": "node --inspect-brk bin/index.js",
-    "test": "node __tests__/basic.test.js"
+    "start": "node bin/index.js"
   },
   "keywords": [
     "telegram",
@@ -49,6 +44,6 @@
     "access": "public"
   },
   "trustedDependencies": [
-    "hono"
+    "create-hono"
   ]
 }

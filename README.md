@@ -31,7 +31,7 @@ Full-featured template with server-side capabilities:
 
 - ⚡ Server-side rendering for better SEO and performance
 - 🔌 API routes (optional) for backend functionality
-- 🔥 Hono integration (optional) for high-performance API routes
+- 🧩 Hono integration (optional) for enhanced API routes
 - 📱 Full Telegram WebApp integration with platform-specific styling
 - 🔄 TanStack Query for data fetching
 - 🧁 Zustand for state management
@@ -54,27 +54,22 @@ Lightweight client-only template:
 
 ```bash
 # Global installation
-
-# npm
 npm install -g create-twa
-
-# pnpm
+# OR
 pnpm add -g create-twa
-
-# bun
-bun add -g create-twa
+# OR
+bun install -g create-twa
 
 # Then create new projects with:
 create-twa my-new-app
 ```
 
-The wizard will guide you through selecting:
+The wizard will guide you through:
 
-- Your preferred package manager (pnpm, bun, npm)
-- Template type (Next.js or Vite)
-- TypeScript, Zod, TanStack Query options
-- For Next.js, API routes and optional Hono integration
-- Telegram bot username
+1. Selecting a package manager (pnpm, bun, npm)
+2. Choosing a template (Next.js or Vite)
+3. Configuring options like API routes
+4. Integrating Hono for Next.js API routes (optional)
 
 ### Using Templates Directly
 
@@ -91,7 +86,7 @@ cp -r twa-template/template-twa-vite my-vite-twa
 
 # Navigate to your project and install dependencies
 cd my-nextjs-twa
-pnpm install  # or npm install, bun install
+pnpm install  # or bun install
 ```
 
 ## Development
@@ -100,10 +95,10 @@ Both templates include development tunnels for testing with Telegram:
 
 ```bash
 # Start development server
-pnpm dev  # or npm run dev, bun dev
+pnpm dev  # or bun dev
 
 # Start development tunnel for testing with Telegram
-pnpm dev:tunnel  # or npm run dev:tunnel, bun dev:tunnel
+pnpm dev:tunnel  # or bun dev:tunnel
 ```
 
 Use the tunnel URL in your Telegram Bot settings for testing.
@@ -113,17 +108,19 @@ Use the tunnel URL in your Telegram Bot settings for testing.
 The Next.js template supports API routes for backend functionality. You can:
 
 1. Use the CLI wizard and select whether to include API routes
-2. Choose to integrate Hono for high-performance API routes
+2. Choose to integrate Hono for enhanced API routing capabilities
 3. Manually remove the `/src/app/api` directory if you don't need them
 
 ## Hono Integration
 
-If you choose to use Hono with Next.js, the wizard will:
+When you choose to use Hono with Next.js API routes, the CLI wizard will:
 
-1. Initialize a Hono project with Next.js template
-2. Add Telegram Web App specific components and hooks
-3. Update the home page to fetch from the API
-4. Configure environment variables for API URLs
+1. Use `create-hono` to scaffold a Next.js project with Hono integration
+2. Integrate the TWA template components and styles
+3. Set up the project structure for optimal Telegram Web App development
+4. Configure the home page to connect with the API route
+
+This provides you with the best of both worlds: the powerful Hono middleware system for your API routes and the TWA template for the Telegram Web App UI.
 
 ## Contributing
 

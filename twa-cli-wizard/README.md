@@ -12,7 +12,7 @@ A command-line interface (CLI) wizard for creating Telegram Web App (TWA) projec
   - TanStack Query for data fetching
   - Tailwind CSS for styling
   - API routes (for Next.js)
-  - Hono integration (for Next.js API routes)
+  - Hono integration for Next.js API routes
 - Automatic project setup and dependency installation
 - Development tunnel for testing with Telegram
 
@@ -28,7 +28,7 @@ npm install -g create-twa
 pnpm add -g create-twa
 
 # Using bun
-bun add -g create-twa
+bun install -g create-twa
 ```
 
 ### Usage Without Installation
@@ -54,12 +54,12 @@ If you don't provide a project name, the wizard will prompt you for one.
 
 Follow the interactive prompts to configure your project:
 
-1. Select your preferred package manager (pnpm, bun, or npm)
+1. Select a package manager (pnpm, bun, npm)
 2. Select a template (Next.js or Vite)
 3. Choose whether to use TypeScript
 4. Configure additional libraries (Zod, TanStack Query, Tailwind CSS)
 5. For Next.js, decide if you want API routes
-6. For Next.js with API routes, decide if you want Hono integration
+6. For Next.js with API routes, decide if you want to use Hono
 7. Enter your Telegram bot username
 
 After completing the wizard, your project will be created with all selected features.
@@ -70,7 +70,7 @@ After completing the wizard, your project will be created with all selected feat
 
 - Server-side rendering capabilities
 - API routes (optional)
-- Hono integration (optional, for API routes)
+- Hono integration for API routes (optional)
 - Full integration with Telegram Mini App API
 - Mobile-optimized layout
 - TanStack Query for data fetching
@@ -87,15 +87,6 @@ After completing the wizard, your project will be created with all selected feat
 - Tailwind CSS for styling
 - TypeScript and Zod for type safety
 
-## Hono Integration
-
-If you choose to use Hono with Next.js API routes, the wizard will:
-
-1. Initialize a Next.js project with Hono
-2. Integrate Telegram Web App specific components and hooks
-3. Set up an example API endpoint
-4. Configure the home page to fetch data from the API
-
 ## Development
 
 To develop the CLI tool:
@@ -105,43 +96,9 @@ To develop the CLI tool:
    git clone https://github.com/voyagebagage/twa-template.git
    cd twa-template/twa-cli-wizard
    ```
-2. Install dependencies with `pnpm install`
+2. Install dependencies with `pnpm install` or `bun install`
 3. Make your changes
-4. Test locally with `pnpm start my-test-app`
-
-## Publishing to npm
-
-This package is ready to be published to npm. To publish:
-
-1. Make sure you have an npm account and are logged in:
-
-   ```bash
-   npm login
-   ```
-
-2. Update the version if needed:
-
-   ```bash
-   npm version patch  # or minor or major
-   ```
-
-3. Publish to npm:
-   ```bash
-   npm publish
-   ```
-
-Alternatively, create a GitHub release which will trigger the automated npm publish workflow.
-
-### GitHub Actions for Publishing
-
-This repository includes a GitHub Actions workflow that will automatically publish to npm when a new GitHub release is created or when the workflow is manually dispatched. To use it:
-
-1. Add your npm token as a GitHub secret named `NPM_TOKEN`
-2. Create a new release on GitHub or manually run the workflow
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for information on how to contribute to this project.
+4. Test locally with `pnpm start my-test-app` or `bun start my-test-app`
 
 ## License
 
